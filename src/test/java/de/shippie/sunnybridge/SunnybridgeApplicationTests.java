@@ -1,16 +1,13 @@
 package de.shippie.sunnybridge;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.boot.test.SpringApplicationConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-
 //@RunWith(SpringJUnit4ClassRunner.class)
 //@SpringApplicationConfiguration(classes = SunnybridgeApplication.class)
-public class SunnybridgeApplicationTests {
+public class SunnybridgeApplicationTests
+{
 
 	//@Test
-	public void contextLoads() {
+	public void contextLoads()
+	{
 	}
 
 }
