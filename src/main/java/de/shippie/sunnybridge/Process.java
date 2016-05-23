@@ -1,6 +1,10 @@
 package de.shippie.sunnybridge;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,11 +13,13 @@ import java.util.Map.Entry;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ReflectionUtils;
 
@@ -36,64 +42,86 @@ public class Process implements CommandLineRunner
 	@Autowired
 	ShutdownManager shutdownManager;
 
+	@SuppressWarnings("unchecked")
+	@Scheduled(fixedDelayString = "${sunnybridge.request.inteval}", initialDelay = 1000)
+	public void requestData()
+	{
+		try
+		{
+			CloseableHttpClient httpClient = httpPortalConnection.connect();
+
+			if (httpClient != null)
+			{
+				httpPortalConnection.login(httpClient);
+				PortalDataResult httpData = httpPortalConnection.getLiveData(httpClient);
+
+				log.info("Received: {}", httpData);
+
+				Method[] methodsJsonDataReq = ReflectionUtils.getAllDeclaredMethods(httpData.getClass());
+				Map<String, Object> xmlProps = loadAllXmlRpcPropsValues();
+				log.info("Loaded Props: {} ", xmlProps);
+
+				if (httpData.getErrorMessages().size() > 0)
+				{
+					log.error("Data ERROR {}", StringUtils.join(httpData.getErrorMessages()));
+					log.error("Send NO Request to XML RPC");
+				}
+				else
+				{
+
+					for (Method methodData : methodsJsonDataReq)
+					{
+						String methodName = methodData.getName();
+						if (!StringUtils.startsWithIgnoreCase(methodName, "get"))
+						{
+							continue;
+						}
+						Object dataValue = ReflectionUtils.invokeMethod(methodData, httpData);
+						String clazzName = (dataValue != null) ? dataValue.getClass().getName() : "-";
+						log.info("Method Name: {} with value {} and Class-Type {}", methodName, dataValue, clazzName);
+
+						XmlrpcPropertyPair keyProps = findPropertyValue(xmlProps, methodName);
+						log.debug("XmlrpcPropertyPair {}", keyProps);
+						if (keyProps.getIdValue() != null && keyProps.isOn())
+						{
+							log.info("Prepare Data for Request id {}, {}", keyProps.getIdValue(), dataValue);
+							String cDataValue = convertDataValue(dataValue);
+							if (cDataValue == null)
+							{
+								log.warn("Data Value is null...skip");
+							}
+							try
+							{
+								xmlRpcConnection.writeValue(keyProps.getIdValue(), cDataValue);
+							}
+							catch (ConnectTimeoutException e)
+							{
+								log.error("Socket timeout, break sending XML RPC Data...");
+								break;
+							}
+						}
+						else
+						{
+							log.info("Skip...is off");
+						}
+					}
+				}
+				httpClient.close();
+			}
+		}
+		catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | IOException e)
+		{
+			log.error("Portal Error", e);
+			throw new RuntimeException(e);
+		}
+
+	}
+
 	@Override
 	public void run(String... args) throws Exception
 	{
-		// TODO Auto-generated method stub
-		CloseableHttpClient httpClient = httpPortalConnection.test();
 
-		if (httpClient != null)
-		{
-			httpPortalConnection.login(httpClient);
-			PortalDataResult httpData = httpPortalConnection.getLiveData(httpClient);
-
-			log.info("Received: {}", httpData);
-
-			Method[] methodsJsonDataReq = ReflectionUtils.getAllDeclaredMethods(httpData.getClass());
-			Map<String, Object> xmlProps = loadAllXmlRpcPropsValues();
-			log.info("Loaded Props: {} ", xmlProps);
-
-			if (httpData.getErrorMessages().size() > 0)
-			{
-				log.error("Data ERROR {}", StringUtils.join(httpData.getErrorMessages()));
-				log.error("Send NO Request to XML RPC");
-			}
-			else
-			{
-
-				for (Method methodData : methodsJsonDataReq)
-				{
-					String methodName = methodData.getName();
-					if (!StringUtils.startsWithIgnoreCase(methodName, "get"))
-					{
-						continue;
-					}
-					Object dataValue = ReflectionUtils.invokeMethod(methodData, httpData);
-					String clazzName = (dataValue != null) ? dataValue.getClass().getName() : "-";
-					log.info("Method Name: {} with value {} and Class-Type {}", methodName, dataValue, clazzName);
-
-					XmlrpcPropertyPair keyProps = findPropertyValue(xmlProps, methodName);
-					log.debug("XmlrpcPropertyPair {}", keyProps);
-					if (keyProps.getIdValue() != null && keyProps.isOn())
-					{
-						log.info("Prepare Data for Request id {}, {}", keyProps.getIdValue(), dataValue);
-						String cDataValue = convertDataValue(dataValue);
-						if (cDataValue == null)
-						{
-							log.warn("Data Value is null...skip");
-						}
-						xmlRpcConnection.writeValue(keyProps.getIdValue(), cDataValue);
-					}
-					else
-					{
-						log.info("Skip...is off");
-					}
-				}
-			}
-
-		}
-
-		shutdownManager.initiateShutdown(0);
+		//shutdownManager.initiateShutdown(0);
 	}
 
 	private String convertDataValue(Object dataValue)
@@ -158,7 +186,6 @@ public class Process implements CommandLineRunner
 		Method[] methodsConfig = ReflectionUtils.getAllDeclaredMethods(rpcMappingsProps.getClass());
 		for (Method method : methodsConfig)
 		{
-			//| !StringUtils.startsWithIgnoreCase(methodName, "is")
 			String methodName = method.getName();
 			if (StringUtils.startsWithIgnoreCase(methodName, "get")
 				| StringUtils.startsWithIgnoreCase(methodName, "is"))

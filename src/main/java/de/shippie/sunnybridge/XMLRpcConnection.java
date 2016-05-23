@@ -9,6 +9,7 @@ import javax.annotation.PostConstruct;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -41,15 +42,12 @@ public class XMLRpcConnection
 
 	@Autowired
 	RpcMappingProps mappingProps;
-	
+
 	@Value("${sunnybridge.xmlrpc.timeout:5}")
 	private int timeout = 5;
-	RequestConfig config = RequestConfig.custom()
-	  .setConnectTimeout(timeout * 1000)
-	  .setConnectionRequestTimeout(timeout * 1000)
-	  .setSocketTimeout(timeout * 1000).build();
-	
-	
+	RequestConfig config = RequestConfig.custom().setConnectTimeout(timeout * 1000)
+		.setConnectionRequestTimeout(timeout * 1000).setSocketTimeout(timeout * 1000).build();
+
 	public XMLRpcConnection()
 	{
 
@@ -66,15 +64,16 @@ public class XMLRpcConnection
 		rpcStateChangeURI = b.build();
 	}
 
-	public void writeValue(String ideId, String value)
+	public void writeValue(String ideId, String value) throws ConnectTimeoutException
 	{
 
 		try
 		{
 			BasicCookieStore cookieStore = new BasicCookieStore();
-			CloseableHttpClient httpclient = HttpClients.custom().setDefaultCookieStore(cookieStore).setUserAgent(
-				"Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2049.0 Safari/537.36")
-			.setDefaultRequestConfig(config).build();
+			CloseableHttpClient httpclient = HttpClients.custom().setDefaultCookieStore(cookieStore)
+				.setUserAgent(
+					"Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2049.0 Safari/537.36")
+				.setDefaultRequestConfig(config).build();
 
 			URIBuilder getRequestURI = new URIBuilder(rpcStateChangeURI);
 			getRequestURI.addParameter("ise_id", ideId);
@@ -84,6 +83,10 @@ public class XMLRpcConnection
 			log.info("Send Data to RPC XML HOMEMATIC: {}", httpRequest.toString());
 			httpclient.execute(httpRequest);
 			httpclient.close();
+		}
+		catch (ConnectTimeoutException e)
+		{
+			throw e;
 		}
 		catch (URISyntaxException | IOException e)
 		{
