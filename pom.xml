@@ -78,7 +78,7 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<mainClass>de.shippie.sunnybridge.SunnybridgeApplication</mainClass>
-					<executable>false</executable>
+					<executable>true</executable>
 					<finalName>sunnybridge</finalName>
 				</configuration>
 			</plugin>
