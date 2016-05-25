@@ -117,6 +117,10 @@ public class RpcMappingProps
 
 	public final String getStamp()
 	{
+		if (stamp == null) {
+			DateFormat df = new SimpleDateFormat("MMddyyyy_HHmmss");
+			stamp = df.format(Calendar.getInstance().getTime());
+		}
 		return stamp;
 	}
 
