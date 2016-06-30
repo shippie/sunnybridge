@@ -148,7 +148,7 @@ public class HttpPortalConnection
 	public void login(CloseableHttpClient httpclient)
 	{
 		HttpPost httpost = new HttpPost(LOGIN);
-		List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+		List<NameValuePair> nvps = new ArrayList<>();
 		nvps.add(new BasicNameValuePair("ctl00$ContentPlaceHolder1$Logincontrol1$txtUserName", sunnyportalUser));
 		nvps.add(new BasicNameValuePair("ctl00$ContentPlaceHolder1$Logincontrol1$txtPassword", sunnyportalPassword));
 		nvps.add(new BasicNameValuePair("__EVENTTARGET", "ctl00$ContentPlaceHolder1$Logincontrol1$LoginBtn"));
@@ -158,6 +158,7 @@ public class HttpPortalConnection
 
 			CloseableHttpResponse response = httpclient.execute(httpost);
 			HttpEntity entity = response.getEntity();
+			log.info("Received Login Entitiy {}", entity.toString());
 			EntityUtils.consume(entity);
 			log.info("login done");
 			response.close();
@@ -165,7 +166,7 @@ public class HttpPortalConnection
 		}
 		catch (IOException e)
 		{
-			log.error("Login failed throw", e);
+			log.error("Login failed throw {}", e);
 		}
 
 	}

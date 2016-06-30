@@ -46,9 +46,10 @@ public class Process implements CommandLineRunner
 	@Scheduled(fixedDelayString = "${sunnybridge.request.inteval}", initialDelay = 1000)
 	public void requestData()
 	{
+		CloseableHttpClient httpClient = null;
 		try
 		{
-			CloseableHttpClient httpClient = httpPortalConnection.connect();
+			httpClient = httpPortalConnection.connect();
 
 			if (httpClient != null)
 			{
@@ -106,13 +107,26 @@ public class Process implements CommandLineRunner
 						}
 					}
 				}
-				httpClient.close();
 			}
 		}
-		catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | IOException e)
+		catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException e)
 		{
-			log.error("Portal Error", e);
+			log.error("Portal Error {}", e);
 			throw new RuntimeException(e);
+		}
+		finally
+		{
+			if (httpClient != null)
+			{
+				try
+				{
+					httpClient.close();
+				}
+				catch (IOException e)
+				{
+					log.error("Error in Closing http Connection {}", e);
+				}
+			}
 		}
 
 	}
