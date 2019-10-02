@@ -1,4 +1,5 @@
-build:
-   image: maven
+pipeline:
+  build:
+    image: maven
     commands:
-      - mvn clean install
+      - mvn -Pdist clean install
