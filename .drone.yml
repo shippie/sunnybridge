@@ -1,0 +1,4 @@
+build:
+   image: maven
+    commands:
+      - mvn clean install
