@@ -1,5 +1,5 @@
 pipeline:
   build:
-    image: maven
+    image: maven:3.5.3-jdk-8
     commands:
       - mvn -Pdist clean install
